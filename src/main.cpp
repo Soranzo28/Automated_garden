@@ -19,7 +19,7 @@ LiquidCrystal_I2C lcd(0x27, 16 ,2);
 //===== Fim Declaração pinos =====
 
 //=====  Declarações de funções  =====
-void atualiza_lcd(int padrao);
+void atualiza_lcd();
 int leitura_umidade();
 void rega_manual();
 void rega_auto(int umidade);
@@ -31,7 +31,7 @@ void control_manual();
 volatile bool pausado = 0, pausadoAnt = 0;
 volatile bool manual = 0, manualAnt = 0;
 bool irrigando = 0;
-int umidade_bruta, umidade_porcentagem;
+int umidade_bruta, umidade_porcentagem, display = 0;
 //===== Fim Declarações de variáveis de controle =====
 
 //===== Declaração variáveis de calibração =====
@@ -67,6 +67,58 @@ void setup() {
 }
 
 void loop() {
+
+  if (pausado && !pausadoAnt){
+    pausadoAnt = pausado;
+    if (manual){
+      manual = 0;
+      manualAnt = manual; //Atualiza a variavel
+      digitalWrite(pin_led_manual, LOW); //Desliga o LED do modo manual
+      intervalo_leitura = 3600000; //Quando desliga o manual, volta pra uma hora de intervalo
+    }
+    if (irrigando){
+      irrigando = false;
+    }
+    digitalWrite(pin_rele, LOW); //Desliga o rele
+    digitalWrite(pin_led_irrigar, LOW); //Desliga o LED da irrigação
+    digitalWrite(pin_led_pausa, HIGH);
+    display = 3;
+    atualiza_lcd();
+  }
+
+  if (!pausado && pausadoAnt){
+    pausadoAnt = pausado;
+    digitalWrite(pin_led_pausa, LOW);
+    display = 0;
+    rega_auto(umidade_porcentagem);
+  }
+
+  if (manual && !manualAnt){
+    manualAnt = manual; //Atualiza a variavel
+    display = 2; //Troca o display do LCD pra mostrar que está no modo manual
+    if (!digitalRead(pin_rele)){ //Se o rele não estava ativo, ativa
+      digitalWrite(pin_rele, HIGH);
+    }
+    if (!digitalRead(pin_led_irrigar)){ //Se o led não estava ligado, liga
+      digitalWrite(pin_led_irrigar, HIGH);
+    }
+    irrigando = 1; //Troca a variavel de controle
+    digitalWrite(pin_led_manual, HIGH); //Liga o led manual
+    intervalo_leitura = 60000; //Troca o intervalo para 1m
+    atualiza_lcd();
+  }
+
+  if (!manual && manualAnt){
+    manualAnt = manual; //Atualiza a variavel
+    digitalWrite(pin_rele, LOW); //Desliga o rele
+    digitalWrite(pin_led_irrigar, LOW); //Desliga o LED da irrigação
+    irrigando = 0; //Troca a variavel de controle
+    display = 0; //Volta o display pro modo padrão
+    digitalWrite(pin_led_manual, LOW); //Desliga o LED do modo manual
+    intervalo_leitura = 3600000; //Quando desliga o manual, volta pra uma hora de intervalo
+    atualiza_lcd();
+  }
+
   unsigned long agora = millis();
 
   if (((long)(agora - tempo_ultima_leitura) >= intervalo_leitura) ) { //Checa o intervalo (ele muda quando está irrigando!)
@@ -85,7 +137,24 @@ void loop() {
     //===== Fim Printa no monitor serial para debug =====
 
     if (!manual){rega_auto(umidade_porcentagem);} //Aciona a rega automatica apenas se a manual estiver desligada
+    atualiza_lcd();
+  }
+}
 
+void control_pause(){
+  pausado = !pausado;
+}
+
+void control_manual(){
+  if (!pausado){
+    switch(digitalRead(pin_manual)){
+      case LOW:
+        manual = 1;
+        break;
+      case HIGH:
+        manual = 0;
+        break;
+    }
   }
 }
 
@@ -107,12 +176,46 @@ void rega_auto(int umidade){
   if (!irrigando && umidade < min_umidade){
     digitalWrite(pin_rele, HIGH);
     irrigando = true;
-    intervalo_leitura = 60000;
+    intervalo_leitura = 60000; //Se não tava irrigando e começou a irrigar, ele troca a leitura de umidade para cada minuto
+    display = 1;
+    digitalWrite(pin_led_irrigar, HIGH);
   }
 
   else if (irrigando && umidade >= max_umidade){
     digitalWrite(pin_rele, LOW);
     irrigando = false;
-    intervalo_leitura = 3600000;
+    intervalo_leitura = 3600000; //Quando desliga a irrigação, volta pra uma hora de intervalo
+    display = 0;
+    digitalWrite(pin_led_irrigar, LOW);
+  }
+  atualiza_lcd();
+}
+
+void atualiza_lcd(){
+  lcd.setCursor(2, 0);
+  lcd.print("Smart Garden");
+  lcd.setCursor(0,1);
+  lcd.print("                "); //Limpa a segunda linha
+
+  switch(display){
+    case 0: //Caso base
+      lcd.setCursor(2, 1);
+      lcd.print("Umidade: XX%");
+      break;
+
+    case 1: //Irrigando
+      lcd.setCursor(0, 1);
+      lcd.print("Umidade: XX% | I");
+      break;
+
+    case 2: //Modo manual
+      lcd.setCursor(0, 1);
+      lcd.print("Umidade: XX% | M");
+      break;
+
+    case 3: //Pausado
+      lcd.setCursor(0, 1);
+      lcd.print("Umidade: XX% | P");
+      break;
   }
 }
