@@ -146,7 +146,13 @@ void control_pause(){
 }
 
 void control_manual(){
-  if (!pausado){
+  if (!pausado){ //Apenas troca o modo caso a pausa esteja desativada
+    /*
+    O SWITCH está aqui pois eu troco a variavel MANUAL via software, o que faz ela deixar de ser exclusiva do interruptor físico
+    a função PAUSE desativa a manual, porém fisicamente o interruptor pode continuar na posição ativada, e sem esse tratamento,
+    ao desliga-lo, ele ativaria o modo manual, invertendo suas posições de ligado e desligado. Deste modo, mesmo que ele fique na posição
+    ligada fiscamente, ao desliga-lo, nada muda, o modo manual continuará desativado.
+    */
     switch(digitalRead(pin_manual)){
       case LOW:
         manual = 1;
@@ -200,22 +206,30 @@ void atualiza_lcd(){
   switch(display){
     case 0: //Caso base
       lcd.setCursor(2, 1);
-      lcd.print("Umidade: XX%");
+      lcd.print("Umidade: ");
+      lcd.print(umidade_porcentagem);
+      lcd.print("%");
       break;
 
     case 1: //Irrigando
       lcd.setCursor(0, 1);
-      lcd.print("Umidade: XX% | I");
+      lcd.print("Umidade: ");
+      lcd.print(umidade_porcentagem);
+      lcd.print("% | I");
       break;
 
     case 2: //Modo manual
       lcd.setCursor(0, 1);
-      lcd.print("Umidade: XX% | M");
+      lcd.print("Umidade: ");
+      lcd.print(umidade_porcentagem);
+      lcd.print("% | M");
       break;
 
     case 3: //Pausado
       lcd.setCursor(0, 1);
-      lcd.print("Umidade: XX% | P");
+      lcd.print("Umidade: ");
+      lcd.print(umidade_porcentagem);
+      lcd.print("% | P");
       break;
   }
 }
