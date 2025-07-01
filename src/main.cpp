@@ -28,8 +28,8 @@ void control_manual();
 //===== Fim Declarações de funções =====
 
 //===== Declarações de variáveis de controle =====
-volatile bool pausado = 0, pausadoAnt = 0;
-volatile bool manual = 0, manualAnt = 0;
+bool pausado = 0, pausadoAnt = 0;
+bool manual = 0, manualAnt = 0;
 bool irrigando = 0;
 int umidade_bruta, umidade_porcentagem, display = 0;
 //===== Fim Declarações de variáveis de controle =====
@@ -42,6 +42,17 @@ unsigned long intervalo_leitura = 3600000; // 1 hora em ms
 const int min_umidade = 40;
 const int max_umidade = 80;
 //===== Fim Declaração variáveis de calibração =====
+
+//===== Declaração variaveis de debounce =====
+// Flags para interrupções
+volatile bool flag_manual = false;
+volatile bool flag_pause = false;
+
+// Para debounce
+unsigned long ultima_acao_manual = 0;
+unsigned long ultima_acao_pause = 0;
+const unsigned long tempo_debounce = 200; // ms
+//===== FIM Declaração variaveis de debounce =====
 
 void setup() {
   //===== Declaração das interrupções =====
@@ -67,6 +78,35 @@ void setup() {
 }
 
 void loop() {
+  unsigned long agora = millis();
+
+  //DEBOUNCE switch manual
+  if (flag_manual && (agora - ultima_acao_manual > tempo_debounce)){
+    flag_manual = false;
+    ultima_acao_manual = agora;
+
+    if (!pausado){
+      if (digitalRead(pin_manual) == LOW){
+        manual = 1;
+      }
+      else {
+        manual = 0;
+      }
+    }
+  }
+
+  //DEBOUNCE switch pause
+  if (flag_pause && (agora - ultima_acao_pause > tempo_debounce)){
+    flag_pause = false;
+    ultima_acao_pause = agora;
+
+    if (digitalRead(pin_pausa) == LOW){
+      pausado = 1;
+    } 
+    else{
+      pausado = 0;
+    }
+  }
 
   if (pausado && !pausadoAnt){
     pausadoAnt = pausado;
@@ -119,9 +159,7 @@ void loop() {
     atualiza_lcd();
   }
 
-  unsigned long agora = millis();
-
-  if (((long)(agora - tempo_ultima_leitura) >= intervalo_leitura) ) { //Checa o intervalo (ele muda quando está irrigando!)
+  if (((agora - tempo_ultima_leitura) >= intervalo_leitura) ) { //Checa o intervalo (ele muda quando está irrigando!)
 
     //===== Configuração leitura da umidade =====
     tempo_ultima_leitura = agora; // Atualiza o tempo da última leitura
@@ -142,26 +180,11 @@ void loop() {
 }
 
 void control_pause(){
-  pausado = !pausado;
+  flag_pause = true;
 }
 
 void control_manual(){
-  if (!pausado){ //Apenas troca o modo caso a pausa esteja desativada
-    /*
-    O SWITCH está aqui pois eu troco a variavel MANUAL via software, o que faz ela deixar de ser exclusiva do interruptor físico
-    a função PAUSE desativa a manual, porém fisicamente o interruptor pode continuar na posição ativada, e sem esse tratamento,
-    ao desliga-lo, ele ativaria o modo manual, invertendo suas posições de ligado e desligado. Deste modo, mesmo que ele fique na posição
-    ligada fiscamente, ao desliga-lo, nada muda, o modo manual continuará desativado.
-    */
-    switch(digitalRead(pin_manual)){
-      case LOW:
-        manual = 1;
-        break;
-      case HIGH:
-        manual = 0;
-        break;
-    }
-  }
+  flag_manual = true;
 }
 
 int leitura_umidade(){
