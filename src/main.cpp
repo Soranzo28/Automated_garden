@@ -26,6 +26,7 @@ void rega_auto(int umidade);
 void control_pause();
 void control_manual();
 void debug();
+void atualiza_umidade();
 //===== Fim Declarações de funções =====
 
 //===== Declarações de variáveis de controle =====
@@ -56,9 +57,12 @@ const unsigned long tempo_debounce = 200; // ms
 //===== FIM Declaração variaveis de debounce =====
 
 void setup() {
+  lcd.init();
+  lcd.init();
+  lcd.backlight();
   //===== Declaração das interrupções =====
-  attachInterrupt(digitalPinToInterrupt(2), control_pause, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(3), control_manual, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(3), control_pause, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(2), control_manual, CHANGE);
   //===== Fim Declaração das interrupções =====
 
   //===== PinMode =====
@@ -75,6 +79,7 @@ void setup() {
   //Iniciação serial
   Serial.begin(9600);
   while(!Serial);
+  atualiza_lcd();
 }
 
 void loop() {
@@ -130,6 +135,7 @@ void loop() {
     pausadoAnt = pausado;
     digitalWrite(pin_led_pausa, LOW);
     display = 0;
+    atualiza_umidade();
     rega_auto(umidade_porcentagem);
   }
 
@@ -156,6 +162,7 @@ void loop() {
     display = 0; //Volta o display pro modo padrão
     digitalWrite(pin_led_manual, LOW); //Desliga o LED do modo manual
     intervalo_leitura = 3600000; //Quando desliga o manual, volta pra uma hora de intervalo
+    atualiza_umidade();
     rega_auto(umidade_porcentagem);
     atualiza_lcd();
   }
@@ -164,9 +171,7 @@ void loop() {
 
     //===== Configuração leitura da umidade =====
     tempo_ultima_leitura = agora; // Atualiza o tempo da última leitura
-    umidade_bruta = leitura_umidade(); // Chama a função
-    umidade_porcentagem = map(umidade_bruta, 0, 1023, 100, 0); // Mapeia para porcentagem
-    umidade_porcentagem = constrain(umidade_porcentagem, 0, 100); //Garante que o valor fique na faixa de 0 - 100%
+    atualiza_umidade();
     //===== Fim Configuração leitura da umidade =====
 
     //===== Printa no monitor serial para debug =====
@@ -187,6 +192,15 @@ void loop() {
     }
   }
   //===== FIM DEBUG =====
+
+}
+
+void atualiza_umidade(){
+  //===== Configuração leitura da umidade =====
+  umidade_bruta = leitura_umidade(); // Chama a função
+  umidade_porcentagem = map(umidade_bruta, 0, 1023, 100, 0); // Mapeia para porcentagem
+  umidade_porcentagem = constrain(umidade_porcentagem, 0, 100); //Garante que o valor fique na faixa de 0 - 100%
+  //===== Fim Configuração leitura da umidade =====
 }
 
 void control_pause(){
