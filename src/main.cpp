@@ -25,6 +25,7 @@ void rega_manual();
 void rega_auto(int umidade);
 void control_pause();
 void control_manual();
+void debug();
 //===== Fim Declarações de funções =====
 
 //===== Declarações de variáveis de controle =====
@@ -74,7 +75,6 @@ void setup() {
   //Iniciação serial
   Serial.begin(9600);
   while(!Serial);
-  Serial.println("Umidade bruta | Umidade porcentagem");
 }
 
 void loop() {
@@ -156,6 +156,7 @@ void loop() {
     display = 0; //Volta o display pro modo padrão
     digitalWrite(pin_led_manual, LOW); //Desliga o LED do modo manual
     intervalo_leitura = 3600000; //Quando desliga o manual, volta pra uma hora de intervalo
+    rega_auto(umidade_porcentagem);
     atualiza_lcd();
   }
 
@@ -177,6 +178,15 @@ void loop() {
     if (!manual){rega_auto(umidade_porcentagem);} //Aciona a rega automatica apenas se a manual estiver desligada
     atualiza_lcd();
   }
+
+  //===== DEBUG =====
+  if (Serial.available()) {
+    char c = Serial.read();
+    if (c == 'd') {
+      debug();
+    }
+  }
+  //===== FIM DEBUG =====
 }
 
 void control_pause(){
@@ -255,4 +265,44 @@ void atualiza_lcd(){
       lcd.print("% | P");
       break;
   }
+}
+
+void debug(){
+  Serial.println("====== DEBUG ======");
+  Serial.print("Umidade bruta: ");
+  Serial.println(umidade_bruta);
+  Serial.print("Umidade %: ");
+  Serial.println(umidade_porcentagem);
+
+  Serial.print("Manual: ");
+  Serial.print(manual);
+  Serial.print(" | Pausado: ");
+  Serial.print(pausado);
+  Serial.print(" | Irrigando: ");
+  Serial.println(irrigando);
+
+  Serial.print("Rele: ");
+  Serial.println(digitalRead(pin_rele));
+  Serial.print("LED Irrigar: ");
+  Serial.println(digitalRead(pin_led_irrigar));
+  Serial.print("LED Manual: ");
+  Serial.println(digitalRead(pin_led_manual));
+  Serial.print("LED Pausa: ");
+  Serial.println(digitalRead(pin_led_pausa));
+
+  Serial.print("Switch Manual (pino físico): ");
+  Serial.println(digitalRead(pin_manual));
+  Serial.print("Switch Pausa (pino físico): ");
+  Serial.println(digitalRead(pin_pausa));
+
+  Serial.print("Display: ");
+  Serial.println(display);
+
+  Serial.print("Intervalo leitura (ms): ");
+  Serial.println(intervalo_leitura);
+  Serial.print("Tempo até próxima leitura (ms): ");
+  Serial.println(intervalo_leitura - (millis() - tempo_ultima_leitura));
+
+  Serial.println("====================");
+  Serial.println();
 }
